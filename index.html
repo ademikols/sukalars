@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Совместный просмотр видео</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            width: 100%;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .mode-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .mode-tabs button {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #999;
+            font-weight: 600;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .mode-tabs button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            font-size: 16px;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .video-container {
+            margin-bottom: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 16 / 9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+        }
+
+        .video-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .player-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .player-controls button {
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .status {
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .users-list {
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .users-list h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .user-item {
+            padding: 5px 0;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .user-item:before {
+            content: "👤 ";
+            margin-right: 5px;
+        }
+
+        .admin-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 8px;
+            border: 2px solid #ffc107;
+        }
+
+        .admin-panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #856404;
+        }
+
+        .room-item {
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .room-item h4 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .room-item p {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 3px;
+        }
+
+        .room-item button {
+            margin-top: 8px;
+            padding: 8px;
+            font-size: 13px;
+            background: #dc3545;
+        }
+
+        .error {
+            color: #dc3545;
+            padding: 10px;
+            background: #f8d7da;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .success {
+            color: #155724;
+            padding: 10px;
+            background: #d4edda;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .copy-btn {
+            font-size: 13px;
+            padding: 5px 10px;
+            width: auto;
+            margin-left: 10px;
+            background: #667eea;
+        }
+
+        .room-code {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Совместный просмотр</h1>
+
+        <div class="mode-tabs">
+            <button class="tab-btn active" data-mode="viewer">Просмотр</button>
+            <button class="tab-btn" data-mode="admin">Админка</button>
+        </div>
+
+        <!-- Режим просмотра -->
+        <div id="viewer" class="view active">
+            <div class="form-group">
+                <label for="url">Ссылка на видео:</label>
+                <input 
+                    type="text" 
+                    id="url" 
+                    placeholder="Вставьте ссылку на YouTube или VK видео"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="roomCode">Код комнаты (если хотите присоединиться):</label>
+                <input 
+                    type="text" 
+                    id="roomCode" 
+                    placeholder="Например: ABC123"
+                >
+            </div>
+
+            <div id="modeButtons">
+                <button id="createBtn">📺 Создать комнату</button>
+            </div>
+
+            <div id="viewerContent" style="display: none;">
+                <div id="status" class="status"></div>
+
+                <div class="video-container">
+                    <div id="videoEmbed" style="width: 100%; height: 100%;"></div>
+                </div>
+
+                <div class="player-controls">
+                    <button id="playBtn">▶️ Play</button>
+                    <button id="pauseBtn">⏸️ Pause</button>
+                    <button id="leaveBtn">🚪 Выход</button>
+                </div>
+
+                <div class="users-list">
+                    <h3>Участники:</h3>
+                    <div id="usersList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Админ-панель -->
+        <div id="admin" class="view">
+            <div id="adminError" style="display: none;" class="error"></div>
+            <div id="adminContent" style="display: none;">
+                <h2>Активные комнаты</h2>
+                <div id="roomsList"></div>
+                <button id="refreshBtn" style="margin-top: 15px;">🔄 Обновить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TG = window.Telegram.WebApp;
+        let initData = TG.initData || '';
+        let userId = TG.initDataUnsafe?.user?.id || 0;
+        let username = TG.initDataUnsafe?.user?.first_name || 'Аноним';
+        let isAdmin = TG.initDataUnsafe?.user?.id === 0; // Переопределится если админ
+
+        let ws = null;
+        let currentRoomCode = null;
+        let currentVideoUrl = null;
+        let videoType = null;
+
+        // Настройка WebApp
+        TG.ready();
+        TG.expand();
+
+        // Получаем параметры из URL
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('admin')) {
+            isAdmin = true;
+        }
+
+        // Переключение между вкладками
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                
+                e.target.classList.add('active');
+                const mode = e.target.dataset.mode;
+                document.getElementById(mode).classList.add('active');
+
+                if (mode === 'admin' && isAdmin) {
+                    loadAdminRooms();
+                }
+            });
+        });
+
+        // Скрываем админ-кнопку если не админ
+        if (!isAdmin) {
+            document.querySelector('[data-mode="admin"]').style.display = 'none';
+        }
+
+        // Обработка создания комнаты
+        document.getElementById('createBtn').addEventListener('click', async () => {
+            const url = document.getElementById('url').value.trim();
+            
+            if (!url) {
+                showStatus('❌ Введите ссылку на видео', 'error');
+                return;
+            }
+
+            const videoInfo = extractVideoInfo(url);
+            if (!videoInfo) {
+                showStatus('❌ Неподдерживаемая ссылка. Используйте YouTube или VK', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/create-room?user_id=' + userId + '&username=' + encodeURIComponent(username));
+                const data = await response.json();
+                
+                currentRoomCode = data.room_code;
+                currentVideoUrl = url;
+                videoType = videoInfo.type;
+
+                connectToRoom(data.room_code, videoInfo);
+                
+                document.getElementById('modeButtons').innerHTML = `
+                    <div class="success">
+                        ✅ Комната создана: <span class="room-code">${data.room_code}</span>
+                        <button class="copy-btn" onclick="navigator.clipboard.writeText('${data.room_code}').then(() => alert('Код скопирован!'))">Копировать</button>
+                    </div>
+                `;
+                document.getElementById('viewerContent').style.display = 'block';
+                
+            } catch (error) {
+                showStatus('❌ Ошибка: ' + error.message, 'error');
+            }
+        });
+
+        // Обработка присоединения к комнате
+        document.getElementById('roomCode').addEventListener('keypress', async (e) => {
+            if (e.key !== 'Enter') return;
+
+            const code = document.getElementById('roomCode').value.trim().toUpperCase();
+            
+            if (!code) {
+                showStatus('❌ Введите код комнаты', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/room-info/' + code);
+                if (!response.ok) {
+                    showStatus('❌ Комната не найдена', 'error');
+                    return;
+                }
+
+                const roomInfo = await response.json();
+                currentRoomCode = code;
+                
+                document.getElementById('modeButtons').innerHTML = '';
+                document.getElementById('viewerContent').style.display = 'block';
+                
+                connectToRoom(code, {type: roomInfo.current_video?.video_type, url: roomInfo.current_video?.url});
+                
+                showStatus('✅ Подключены к комнате ' + code, 'success');
+                
+            } catch (error) {
+                showStatus('❌ Ошибка: ' + error.message, 'error');
+            }
+        });
+
+        function connectToRoom(roomCode, videoInfo) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/${roomCode}?init_data=${encodeURIComponent(initData)}`;
+            
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('WebSocket подключен');
+                if (videoInfo && videoInfo.url) {
+                    renderVideo(videoInfo.url, videoInfo.type);
+                }
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket ошибка:', error);
+                showStatus('❌ Ошибка соединения', 'error');
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket отключен');
+            };
+        }
+
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'room_state':
+                    updateUsersList(data.users);
+                    if (data.current_video) {
+                        renderVideo(data.current_video.url, data.current_video.type);
+                    }
+                    break;
+                    
+                case 'user_joined':
+                    showStatus(`👤 ${data.user_name} присоединился (${data.users_count})`, 'success');
+                    break;
+                    
+                case 'user_left':
+                    showStatus(`👤 ${data.user_name} вышел (${data.users_count})`, 'success');
+                    break;
+                    
+                case 'video_changed':
+                    renderVideo(data.url, data.video_type);
+                    showStatus(`🎬 ${data.changed_by} изменил видео`, 'success');
+                    break;
+                    
+                case 'play':
+                    showStatus(`▶️ ${data.user} запустил видео`, 'success');
+                    break;
+                    
+                case 'pause':
+                    showStatus(`⏸️ ${data.user} паузировал видео`, 'success');
+                    break;
+                    
+                case 'seek':
+                    showStatus(`⏩ ${data.user} перемотал видео`, 'success');
+                    break;
+            }
+        }
+
+        function renderVideo(url, type) {
+            const container = document.getElementById('videoEmbed');
+            container.innerHTML = '';
+
+            if (type === 'youtube') {
+                const videoId = extractYouTubeId(url);
+                if (videoId) {
+                    container.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
+                }
+            } else if (type === 'vk') {
+                const oid = extractVKVideoInfo(url);
+                if (oid) {
+                    container.innerHTML = `<iframe src="https://vk.com/video_ext.php?oid=${oid.oid}&id=${oid.id}" allowfullscreen></iframe>`;
+                }
+            }
+        }
+
+        function extractVideoInfo(url) {
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                return { type: 'youtube', url: url };
+            } else if (url.includes('vk.com') || url.includes('vkontakte.ru')) {
+                return { type: 'vk', url: url };
+            }
+            return null;
+        }
+
+        function extractYouTubeId(url) {
+            const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/;
+            const match = url.match(regex);
+            return match ? match[1] : null;
+        }
+
+        function extractVKVideoInfo(url) {
+            // Формат: vk.com/video-123456_789012 или video-oid_id
+            const regex = /video(-?\d+)_(\d+)/;
+            const match = url.match(regex);
+            if (match) {
+                return { oid: match[1], id: match[2] };
+            }
+            return null;
+        }
+
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'play',
+                    time: 0
+                }));
+            }
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'pause',
+                    time: 0
+                }));
+            }
+        });
+
+        document.getElementById('leaveBtn').addEventListener('click', () => {
+            if (ws) {
+                ws.close();
+            }
+            document.getElementById('viewerContent').style.display = 'none';
+            document.getElementById('modeButtons').innerHTML = `<button id="createBtn">📺 Создать комнату</button>`;
+            document.getElementById('createBtn').addEventListener('click', arguments.callee);
+        });
+
+        function updateUsersList(users) {
+            const list = document.getElementById('usersList');
+            list.innerHTML = users.length > 0 
+                ? users.map(u => `<div class="user-item">${u.name}</div>`).join('')
+                : '<div class="user-item">Нет участников</div>';
+        }
+
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+            setTimeout(() => {
+                status.textContent = '';
+            }, 5000);
+        }
+
+        // Админ-панель
+        async function loadAdminRooms() {
+            if (!isAdmin) return;
+
+            try {
+                const response = await fetch(`/admin/rooms?user_id=${userId}`);
+                const data = await response.json();
+
+                const container = document.getElementById('roomsList');
+                
+                if (data.rooms.length === 0) {
+                    container.innerHTML = '<p>Активных комнат нет</p>';
+                    document.getElementById('adminContent').style.display = 'block';
+                    return;
+                }
+
+                container.innerHTML = data.rooms.map(room => `
+                    <div class="room-item">
+                        <h4>🔑 ${room.code}</h4>
+                        <p>👤 Создатель: ${room.creator}</p>
+                        <p>👥 Участников: ${room.users_count}</p>
+                        <p>📺 ${room.current_video ? 'Видео загружено' : 'Видео не загружено'}</p>
+                        <p>⏰ ${new Date(room.created_at).toLocaleTimeString('ru-RU')}</p>
+                        <button onclick="closeRoom('${room.code}')">❌ Закрыть</button>
+                    </div>
+                `).join('');
+
+                document.getElementById('adminContent').style.display = 'block';
+
+            } catch (error) {
+                document.getElementById('adminError').textContent = 'Ошибка: ' + error.message;
+                document.getElementById('adminError').style.display = 'block';
+            }
+        }
+
+        async function closeRoom(roomCode) {
+            if (!confirm(`Вы уверены? Это закроет комнату ${roomCode}`)) return;
+
+            try {
+                await fetch(`/admin/close-room/${roomCode}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                
+                loadAdminRooms();
+                alert('Комната закрыта');
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        document.getElementById('refreshBtn')?.addEventListener('click', loadAdminRooms);
+
+        // Если админ, сразу грузим админ-панель
+        if (isAdmin) {
+            const adminView = document.getElementById('admin');
+            adminView.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
